@@ -1,0 +1,170 @@
+---
+title: "ANALOMY DETECTION"
+author: "GRIFFIN"
+date: "2022-08-03"
+output:
+  word_document: default
+  html_document: default
+---
+
+##RESEARCH QUESTION##
+
+Carrefour Kenya and are currently undertaking a project that will inform the marketing department on the most relevant marketing strategies that will result in the highest no. of sales (total price including tax).This project is aimed at doing analysis on the dataset provided by carrefour and create insights on how to achieve highest sales.
+
+##METRIC FOR SUCCESS##
+
+Be able to detect and do away with anomalies in our dataset
+
+##THE CONTEXT##
+
+Carre Four is an International chain of retail supemarkets in the world, It was set up in Kenya in the year 2016 and has been performing well over the years.Carrefour ensures customer satisfaction and everyday convenience while offering unbeatable value for money with a vast array of more than 100,000 products, shoppers can purchase items for their every need, whether home electronics or fresh fruits from around the world, to locally produced items.
+This project is aimed at creating insights from existing and current trends to develop marketing strategies that will enable the marketing team achieve higher sales.
+
+
+
+##EXPERIMENTAL DESIGN##
+
+ 1. Loading libraries
+ 2. Load data
+ 2. Data cleaning
+ 3. Anomaly detection
+ 4. Conclusion
+ 5. Recommendation
+ 
+# Loading the libraries
+```{r}
+#pkg <- c('tidyverse','tibbletime','anomalize','timetk')
+#install.packages(pkg)
+#install.packages("anomalize")
+library(tidyverse)
+library(tibbletime)
+library(anomalize)
+library(timetk)
+```
+
+# Loading the data
+**reading the data**
+```{r}
+data<- read.csv("C://moringa//GROUP WORK//Supermarket_Sales_Forecasting - Sales.csv")
+```
+**Previewing the dataset**
+```{r}
+#cheaking the head
+head(data)
+```
+```{r}
+#checking the tail
+tail(data)
+```
+````{r}
+#checking the data structure
+str(data)
+```
+our data has 1000 records and 2 variables which are character and numeric
+# Data cleaning
+**Checking missing values**
+````{r}
+#checking missing values
+colSums((is.na(data)))
+```
+our data has no missing values
+**checking duplicates**
+```{r}
+#checking duplicates
+duplicates<- data[duplicated(data)]
+duplicates
+```
+our data has no duplicates
+**checking datatype**
+```{r}
+#checking datatype
+str(data)
+#date column is a character thus need to cconvert it to date type
+data$Date <- as.Date(data$Date,"%m/%d/%Y")
+str(data)
+head(data)
+```
+```{r}
+#as. POSIXct stores both a date and time with an associated time zone. The default time zone selected, is the time zone that your computer is set #to which is most often your local time zone
+data$Date <- as.POSIXct(data$Date)
+```
+```{r}
+# Convert df to a tibble
+#because time_decompose require data to be tibble
+data <- as_tibble(data)
+class(data)
+data
+```
+# implementing the solution
+The R ‘anomalize’ package enables a workflow for detecting anomalies in data. The main functions are time_decompose(),
+anomalize(), and time_recompose().
+We will use time_decompose() function in anomalize package. We will use stl method which uses the loess smoothing to extracts seasonality
+```{r}
+data %>%
+time_decompose(Sales, method = 'stl', frequency = 'auto', trend = 'auto') %>%
+anomalize(remainder, method = 'gesd', alpha = 0.1, max_anoms = 0.5) %>%
+plot_anomaly_decomposition()
+```
+ time_decompose() functions which produces four columns
+ -The overall observed data.
+ -The seasonal or cyclic trend. 
+ -The long-term trend. The default is a span of 3 months.
+ -It is used for analyzing the outliers.
+ The red points indicate anomalies according to the anomalize function
+ 
+ **Recomposing**
+create lower and upper bounds around the observed values with time_recompose. It recomposes the season, trend, remainder_l1 and remainder_l2 into new limits that are
+-recomposed_l1 : The lower bound of outliers around the observed values.
+-recomposed_l2 : The upper bound of outliers around the observed values
+```{r}
+data %>%
+time_decompose(Sales, method = 'stl', frequency = 'auto', trend = 'auto') %>%
+anomalize(remainder, method = 'gesd', alpha = 0.1, max_anoms = 0.1) %>%
+time_recompose() %>%
+plot_anomalies(time_recomposed = TRUE)
+```
+ - The plot and shows the anomalies
+ 
+ - check actual anomalies values
+```{r}
+anomalies = data %>%
+time_decompose(Sales, method = 'stl', frequency = 'auto', trend = 'auto') %>%
+anomalize(remainder, method = 'gesd', alpha = 0.05, max_anoms = 0.1) %>%
+time_recompose() %>%
+filter(anomaly == 'Yes')
+anomalies
+```
+**Adjusting Alpha and Max Anoms**
+Aplha
+The alpha and max_anoms are the two parameters that control the anomalize() function. 
+we used alpha = 0.1 amd we then try to reduce it to alpha=0.05 and see what happens
+```{r}
+data %>%
+time_decompose(Sales, method = 'stl', frequency = 'auto', trend = 'auto') %>%
+anomalize(remainder, method = 'gesd', alpha = 0.05, max_anoms = 0.1) %>%
+time_recompose() %>%
+plot_anomalies(time_recomposed = TRUE)
+```
+If we decrease alpha, it increases the bands making it more difficult to be an outlier.
+Max Anoms
+The max_anoms parameter is used to control the maximum percentage of data that can be an anomaly.
+we used max_anoms as 0.1 and we now try to increase it to 0.2 and see what happens and we use alpha as 0.5 where nearly eveything is anomally
+```{r}
+data %>%
+time_decompose(Sales, method = 'stl', frequency = 'auto', trend = 'auto') %>%
+anomalize(remainder, method = 'gesd', alpha = 0.5, max_anoms = 0.2) %>%
+time_recompose() %>%
+plot_anomalies(time_recomposed = TRUE)
+```
+```{r}
+data %>%
+time_decompose(Sales, method = 'stl', frequency = 'auto', trend = 'auto') %>%
+anomalize(remainder, method = 'gesd', alpha = 0.5, max_anoms = 0.05) %>%
+time_recompose() %>%
+plot_anomalies(time_recomposed = TRUE)
+```
+using a lower value for the max_anoms means less number of anomalies will be detected
+# 5. CONCLUSION##
+ftom our investigation we find that the data has some anomalies
+# 6. RECOMMENDATION##
+The carrefour should investigate to find out the cause of anomalies
