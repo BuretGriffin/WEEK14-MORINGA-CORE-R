@@ -1,0 +1,206 @@
+---
+title: "Dimensonality_and_feature_selection"
+author: "GRIFFIN BURET"
+date: "2022-08-04"
+output:
+  word_document: default
+  html_document: default
+---
+
+##RESEARCH QUESTION##
+
+Carrefour Kenya and are currently undertaking a project that will inform the marketing department on the most relevant marketing strategies that will result in the highest no. of sales (total price including tax).This project is aimed at doing analysis on the dataset provided by carrefour and create insights on how to achieve highest sales.
+
+##METRIC FOR SUCCESS##
+
+Be able to detect and do away with anomalies in our dataset
+
+##THE CONTEXT##
+
+Carre Four is an International chain of retail supemarkets in the world, It was set up in Kenya in the year 2016 and has been performing well over the years.Carrefour ensures customer satisfaction and everyday convenience while offering unbeatable value for money with a vast array of more than 100,000 products, shoppers can purchase items for their every need, whether home electronics or fresh fruits from around the world, to locally produced items.
+This project is aimed at creating insights from existing and current trends to develop marketing strategies that will enable the marketing team achieve higher sales.
+
+
+
+##EXPERIMENTAL DESIGN##
+
+ 1. Loading libraries
+ 2. Load data
+ 3. Data cleaning
+ 4. PCA
+ 5.Feature selection
+ 6. Conclusion
+ 5. Recommendation
+# importing libraries
+```{r}
+library(caret)
+library(superml)
+#install.packages("devtools", type = "win.binary")
+remotes::install_github('vqv/ggbiplot')
+library(ggbiplot)
+#suppressWarnings(
+        #suppressMessages(if
+                         #(!require(corrplot, quietly=TRUE))
+                #install.packages("corrplot")))
+library(corrplot)
+```
+
+# Loading dataset
+
+```{r}
+#reading the data set
+sales<- read.csv("C:/Users/Admin/Downloads/Supermarket_Dataset_1 - Sales Data.csv")
+```
+ 
+**Previewing the data**
+```{r}
+#previewing the head
+head(sales)
+```
+
+```{r}
+#previewing the tail
+tail(sales)
+```
+
+```{r}
+#checking the data structure
+str(sales)
+```
+```{r}
+#checking the unique values in the rows
+#sapply(sales,n_distinct)
+```
+our data has 1000 observations and 16 columns.
+there are 8 character variables and 8 numeric variables
+# Data cleaning
+**Checking missing values**
+```{r}
+#checking missing values
+colSums((is.na(sales)))
+```
+our dataset has no missing values
+**checking duplicates **
+```{r}
+duplicates <- sales[duplicated(sales)]
+duplicates
+```
+our data has no duplicates
+
+```{r}
+#dropping columns we wont nedd
+#we drop the id column , date column,time and gross.margin column  since we wont need
+sales_df<- sales[,-c(1,9,10,13)]
+head(sales_df)
+```
+# Data Processing
+
+**converting categorical data to numeric**
+
+```{r}
+#label encoding our data set
+label <- LabelEncoder$new()
+print(label$fit(sales_df$Customer.type))
+print(label$fit(sales_df$Gender))
+print(label$fit(sales_df$Product.line))
+print(label$fit(sales_df$Payment))
+sales_df$Branch <- label$fit_transform(sales_df$Branch)
+sales_df$Customer.type <- label$fit_transform(sales_df$Customer.type)
+sales_df$Gender <- label$fit_transform(sales_df$Gender)
+sales_df$Product.line <- label$fit_transform(sales_df$Product.line)
+sales_df$Payment <- label$fit_transform(sales_df$Payment)
+head(sales_df)
+```
+
+
+**scaling data**
+```{r}
+#we encoded our data because PCA only works with numeric data and since it is sensitive to scale of measurement we need to scale our data
+sales_num<- sales_df[,c(5,7:12)]
+head(sales_num)
+#checking the stats of our numerical data to check if they have same mean and variance
+stats<- data.frame(
+  sd=apply(sales_num,2,sd),
+  mean = apply(sales_num,2,mean)
+  
+)
+stats
+#the numerical dataset has different means and variance thus the need to scale
+sales_scale<- scale(sales_num)
+head(sales_scale)
+#combining the numerical data with the categorical
+sales_new<- cbind(sales_df,sales_scale)
+sales_data<- sales_new[,-c(5,7:12)]
+head(sales_data)
+```
+
+# implementing the solution
+**Dimensionality Reduction usinng PCA **
+```{r}
+#fitting the model
+sales_pca <- prcomp(sales_data,scale=FALSE,center=TRUE)
+summary(sales_pca)
+```
+our data has 12 PCs and the the first,second and the third explain 56%,14% and 12% variance respectively
+
+````{r}
+#getting the structure of the PCA  output to see the sdev ,rotation and other output
+str(sales_pca)
+```
+```{r}
+#ploting a scree plot to see the variation of each PC
+#getting the variance
+pr<- sales_pca$sdev^2
+#getting propotion
+pve<- pr/sum(pr)
+#ploting scree plot
+plot(pve, xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b")
+```
+```{r}
+# Plot cumulative proportion of variance explained
+plot(cumsum(pve), xlab = "Principal Component",
+     ylab = "Cumulative Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b")
+```
+```{r}
+#ploting biplot using the first 2 PCs
+ggbiplot(sales_pca)
+```
+from the biplot we can see that the quantity and the product line has the longest vectors thus they contribute the most variability
+the quantity contributes more to PC1 and the product line contribute more to PC2
+the gross income and the quantity are closely corelated as the angle between the vectors are small
+````{r}
+#ploting biplot using the third and fourth  PCs
+ggbiplot(sales_pca,choices = c(3,4))
+```
+the length of the vectors are short since most variability have been accounted by the first two components
+**feature selection**
+```{r}
+# calculate correlation matrix
+correlationMatrix <- cor(sales_data)
+# summarize the correlation matrix
+print(correlationMatrix)
+# find attributes that are highly corrected (ideally >0.75)
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.75)
+# print indexes of highly correlated attributes
+print(highlyCorrelated)
+```
+we see that the highly correlated attributes are tax,cogs,gross.income and   thus we  remove them
+```{r}
+#we now remove the highly correlleted variables
+sales_data1<- sales_data[-(highlyCorrelated)]
+head(sales_data1)
+```
+```{r}
+#making graphical presantation before and after removing the highly correlated features
+par(mfrow = c(1, 2))
+corrplot(correlationMatrix, order = "hclust")
+corrplot(cor(sales_data1), order = "hclust")
+        
+```
+# Recomendations
+the are some variables that are redundant thus need to do dimensonality  reduction and feature selection to identify the important features
+# Conclusion
+dimesionality reduction and feature selection helps speed up the training of the model as they remove reduntant features
