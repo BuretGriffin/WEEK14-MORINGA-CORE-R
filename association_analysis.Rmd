@@ -1,0 +1,156 @@
+---
+title: "ASSOCIATION_ANALYSIS"
+author: "GRIFFIN BURET"
+date: "2022-08-03"
+output:
+  word_document: default
+  html_document: default
+---
+
+##RESEARCH QUESTION##
+
+Carrefour Kenya and are currently undertaking a project that will inform the marketing department on the most relevant marketing strategies that will result in the highest no. of sales (total price including tax).This project is aimed at doing analysis on the dataset provided by carrefour and create insights on how to achieve highest sales.
+
+##METRIC FOR SUCCESS##
+
+Be able to come up with an association analysis for the products
+
+##THE CONTEXT##
+
+Carre Four is an International chain of retail supemarkets in the world, It was set up in Kenya in the year 2016 and has been performing well over the years.Carrefour ensures customer satisfaction and everyday convenience while offering unbeatable value for money with a vast array of more than 100,000 products, shoppers can purchase items for their every need, whether home electronics or fresh fruits from around the world, to locally produced items.
+This project is aimed at creating insights from existing and current trends to develop marketing strategies that will enable the marketing team achieve higher sales.
+
+
+
+##EXPERIMENTAL DESIGN##
+
+ 1. Loading libraries
+ 2. Load data 
+ 3. Association analysis
+ 4. Conclusion
+ 5. Recommendation
+
+# loading libraries
+```{r}
+#install.packages("arules")
+library("arules")
+```
+
+# loading dataset
+```{r}
+#will use read.transactions fuction which will load data from comma-separated files 
+# and convert them to the class transactions, which is the kind of data that 
+# we will require while working with models of association rules
+Transactions<-read.transactions("C://moringa//GROUP WORK//Supermarket_Sales_Dataset II.csv",sep=",")
+Transactions
+```
+
+# previewing dataset
+```{r}
+#looking at the items that make our data
+items<-as.data.frame(itemLabels(Transactions))
+colnames(items) <- "Item"
+head(items, 10)
+```
+
+# EDA
+
+```{r}
+#generating summary that will give us info eg the most purchased
+summary(Transactions)
+```
+we can see that the most purchased is mineral water followed by eggs
+
+```{r}
+par(mfrow = c(1, 2))
+# plot the frequency of items
+itemFrequencyPlot(Transactions, topN = 10,col="darkgreen")
+itemFrequencyPlot(Transactions, support = 0.1,col="darkred")
+```
+
+
+```{r}
+# Building a model based on association rules 
+# using the apriori function 
+# ---
+# We use Min Support as 0.001 and confidence as 0.8
+# ---
+# 
+rules <- apriori (Transactions, parameter = list(supp = 0.001, conf = 0.8))
+rules
+```
+
+```{r}
+#we build the model  using 0.001 Min support 
+# and confidence as 0.8 we obtained 74 rules.
+# to investigate the sensitivity of the parameters of the mode; 
+# we will see what happens if we increase the support or lower the confidence levee builtl
+# 
+# Building a apriori model with Min Support as 0.002 and confidence as 0.8.
+rules2 <- apriori (Transactions,parameter = list(supp = 0.002, conf = 0.8)) 
+# Building apriori model with Min Support as 0.002 and confidence as 0.6.
+rules3 <- apriori (Transactions, parameter = list(supp = 0.001, conf = 0.6)) 
+rules2
+rules3
+```
+
+ we first increased the minimum support of 0.001 to 0.002 and model rules went from 74 to only 2. This would lead us to understand that using a high level of support can make the model lose interesting rules.  we then  decreased the minimum confidence level to 0.6 and the number of model rules went from 74 to 545. This would mean that using a low confidence level increases the number of rules to quite an extent and many will not be useful
+ 
+```{r}
+summary(rules)
+#, the function would give us information about the model :
+# A.i.e. the size of rules, b.depending on the items that contain these rules. 
+# In our above case, most rules have 3 and 4 items though some rules do have upto 6. 
+# More statistical information such as support, lift and confidence is also provided.
+# ---
+```
+
+```{R}
+# Observing rules built in our model i.e. first 5 model rules
+# ---
+# 
+inspect(rules[1:5])
+```
+we can see that if a person frozen smoothie and spinach then there is 88% chance he will buy mineral water
+
+```{R}
+# we order this rules by confidence though 
+# We can also use different criteria such as: (by = "lift" or by = "support")
+# 
+rules<-sort(rules, by="confidence", decreasing=TRUE)
+inspect(rules[1:5])
+```
+the first four rules has 100% confidence 
+
+
+```{R}
+# the organisation has decided to make a promotion for chocolate thus we make a subset rule containg the product
+# This would tell us the items that the customers bought before purchasing yogurt
+# ---
+# 
+chocolate <- subset(rules, subset = rhs %pin% "chocolate")
+ 
+# Then order by confidence
+chocolate<-sort(chocolate, by="confidence", decreasing=TRUE)
+inspect(chocolate[1:2])
+```
+
+
+we see that a person will buy escalope,french fries and shrimp has 88% chance of buying chocolate
+```{R}
+# we are intrested by the items a person will buy after buying chocolate
+# 
+chocolate <- subset(rules, subset = lhs %pin% "chocolate")
+ 
+# Then order by confidence
+chocolate<-sort(chocolate, by="confidence", decreasing=TRUE)
+inspect(chocolate[1:2])
+```
+we see that a person who buys chocolate,soup ad turkey will 89% chance buy mineral water
+
+
+# Recomendations
+The organisation should be using the association analysis in promoting it products
+
+# Conclusion
+use of association analysis leads to increase sell as this will help them know what people purchase prior and after buying the product
